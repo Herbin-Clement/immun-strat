@@ -2,6 +2,8 @@ import networkx as nx
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import src.immun as immun
+import src.utils as utils
 
 def generate_barabasi_albert_graph(n, m, seed):
     """
@@ -9,37 +11,61 @@ def generate_barabasi_albert_graph(n, m, seed):
     """
     G = nx.barabasi_albert_graph(n, m, seed)
     for node in G.nodes(data=False):
-        G.nodes[node]["state"] = "S"
+        G.nodes[node]["state"] = 'S'
     return G
 
 def generate_erdos_renyi_graph(n, p, seed):
+    """
+    Generate ER(n,p) Erdos-Renyi model
+    """
     G = nx.erdos_renyi_graph(n, p, seed)
     for node in G.nodes(data=False):
-        G.nodes[node]["state"] = "S"
+        G.nodes[node]["state"] = 'S'
     return G
 
 def generate_complete_graph(n):
+    """
+    Generate a complete graph of n nodes
+    """
     G = nx.complete_graph(n)
     for node in G.nodes(data=False):
-        G.nodes[node]["state"] = "S"
+        G.nodes[node]["state"] = 'S'
+    return G
+
+def generate_watts_strogatz_graph(n, seed):
+    G = nx.watts_strogatz_graph(n, 4, 0.5, seed)
+    for node in G.nodes(data=False):
+        G.nodes[node]["state"] = 'S'
     return G
 
 def add_random_infected(G, n):
-    for node in random.sample(list(G.nodes), n):
-        G.nodes[node]["state"] = 'I'
+    """
+    Add n infected nodes in G randomly
+    """
+    i = 0
+    nodes = list(G.nodes)
+    while i < n:
+        node = random.sample(nodes, 1)[0]
+        s = G.nodes[node]["state"]
+        if s != 'V' and s != 'I':
+            G.nodes[node]["state"] = 'I'
+            i += 1
 
-def print_g_sis_carac(G):
+def print_g_sis_carac(G, name="G"):
     """
     Print differents caracteristic for SIS model
     """
     susceptible = 0
     infected = 0
+    vaccinated = 0
     for _, data in G.nodes(data=True):
         if data["state"] == 'S':
             susceptible += 1
+        elif data["state"] == 'V':
+            vaccinated += 1
         else:
             infected += 1
-    print(f"G has {susceptible} suceptibles nodes and {infected} infected nodes")
+    print(f"{name} has {vaccinated} vaccinated nodes, {susceptible} suceptibles nodes and {infected} infected nodes")
     
 def draw_g_sis(G, color_sus="green", color_inf="red"):
     """
@@ -57,25 +83,35 @@ def print_state(states):
     for state in states:
         print(state)
 
-def plot_infected_grow(states, n, title="Infection growth"):
-    x = [step["t"] for step in states]
-    y = [step["cur_inf"]/n for step in states]
+def plot_infected_grow(states, legends, n, title="Infection growth"):
+    """
+    Plot the infected rate over time
+    """
+    x = [step["t"] for step in states[0]]
     plt.figure(facecolor="#505050")
     ax = plt.axes()
     ax.set_title(title)
-    ax.plot(x, y, color="orange")
+    for i, state in enumerate(states):
+        y = [step["cur_inf"]/n for step in state]
+        ax.plot(x, y, label=legends[i])
     ax.set_facecolor("#505050")
     ax.set_xlabel("t")
     ax.set_ylim([0, 1])
     ax.set_ylabel("Infectious rate")
+    ax.legend()
     plt.show()
 
 def run_sis(G, beta, gamma, t_max):
+    """
+    Run a simulation of a SIS model
+    """
     sim_states = []
     for t in range(1, t_max + 1):
         sim_step_state = {"t": t, "cur_sus": 0, "cur_inf": 0, "infected": 0, "recover":0}
         nodes = [G.nodes[node]["state"] for node in list(G.nodes)]
         for n in G.nodes(data=False):
+            if G.nodes[n]["state"] == 'V':
+                continue
             if G.nodes[n]["state"] == 'I':              # if node infected 
                 if np.random.rand() < gamma:            # node recover if r > Gamma
                     nodes[n] = 'S'
@@ -100,3 +136,27 @@ def run_sis(G, beta, gamma, t_max):
             G.nodes[node]["state"] = state
         sim_states.append(sim_step_state)
     return sim_states
+
+def run_sim(G, n_inf, n_vac, beta, gamma, t_max, plt_title):
+    n = len(list(G.nodes))
+    utils.print_g_carac(G)
+    G_hg = immun.immun_high_degree(G, n_vac)
+    G_pg = immun.immun_page_rank(G, n_vac)
+
+    add_random_infected(G, n_inf)
+    add_random_infected(G_hg, n_inf)
+    add_random_infected(G_pg, n_inf)
+
+    print_g_sis_carac(G)
+    print_g_sis_carac(G_hg, name="G_HG")
+    print_g_sis_carac(G_pg, name="G_PG")
+
+    G_states = run_sis(G, beta, gamma, t_max)
+    G_hg_states = run_sis(G_hg, beta, gamma, t_max)
+    G_pg_states = run_sis(G_pg, beta, gamma, t_max)
+    
+
+    plot_infected_grow([G_states, G_hg_states, G_pg_states],
+                       ["Normal", "High degree", "PageRank"],
+                       n,
+                       title=plt_title)

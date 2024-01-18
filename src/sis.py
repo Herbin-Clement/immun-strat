@@ -34,12 +34,15 @@ def print_g_sis_carac(G):
     """
     susceptible = 0
     infected = 0
+    vaccinated=0
     for _, data in G.nodes(data=True):
         if data["state"] == 'S':
             susceptible += 1
-        else:
+        elif data["state"] == 'I':
             infected += 1
-    print(f"G has {susceptible} suceptibles nodes and {infected} infected nodes")
+        elif data["state"] == 'V':
+            vaccinated+=1    
+    print(f"G has {susceptible} suceptibles nodes, {infected} infected nodes {vaccinated} vaccinated nodes")
     
 def draw_g_sis(G, color_sus="green", color_inf="red"):
     """
@@ -76,6 +79,8 @@ def run_sis(G, beta, gamma, t_max):
         sim_step_state = {"t": t, "cur_sus": 0, "cur_inf": 0, "infected": 0, "recover":0}
         nodes = [G.nodes[node]["state"] for node in list(G.nodes)]
         for n in G.nodes(data=False):
+            if G.nodes[n]["state"] == 'V': 
+                continue
             if G.nodes[n]["state"] == 'I':              # if node infected 
                 if np.random.rand() < gamma:            # node recover if r > Gamma
                     nodes[n] = 'S'
@@ -100,3 +105,31 @@ def run_sis(G, beta, gamma, t_max):
             G.nodes[node]["state"] = state
         sim_states.append(sim_step_state)
     return sim_states
+
+
+
+def vaccinate_greedy(G, num_to_vaccinate, beta):
+    vaccinated_nodes = set()
+    while len(vaccinated_nodes) < num_to_vaccinate:
+        node_impacts = {node: sum(beta for neighbor in G.neighbors(node) if G.nodes[neighbor]['state'] == 'I') for node in G.nodes() if G.nodes[node]['state'] != 'V'}
+        node_to_vaccinate = max(node_impacts, key=node_impacts.get)
+        vaccinated_nodes.add(node_to_vaccinate)
+        G.nodes[node_to_vaccinate]['state'] = 'V'
+
+def vaccinate_by_degree(G, num_to_vaccinate):
+    degrees = G.degree()
+    top_nodes = sorted(degrees, key=lambda x: x[1], reverse=True)[:num_to_vaccinate]
+    for node, _ in top_nodes:
+        G.nodes[node]['state'] = 'V'
+
+def vaccinate_by_betweenness_centrality(G, num_to_vaccinate):
+    centrality = nx.betweenness_centrality(G)
+    top_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)[:num_to_vaccinate]
+    for node, _ in top_nodes:
+        G.nodes[node]['state'] = 'V'
+
+def vaccinate_by_pagerank(G, num_to_vaccinate):
+    pagerank = nx.pagerank(G)
+    top_nodes = sorted(pagerank.items(), key=lambda x: x[1], reverse=True)[:num_to_vaccinate]
+    for node, _ in top_nodes:
+        G.nodes[node]['state'] = 'V'

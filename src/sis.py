@@ -142,21 +142,29 @@ def run_sim(G, n_inf, n_vac, beta, gamma, t_max, plt_title):
     utils.print_g_carac(G)
     G_hg = immun.immun_high_degree(G, n_vac)
     G_pg = immun.immun_page_rank(G, n_vac)
+    G_bc = immun.immun_betweenness_centrality(G, n_vac)
+    G_gr = immun.immun_greedy(G, n_vac, beta)
 
     add_random_infected(G, n_inf)
     add_random_infected(G_hg, n_inf)
     add_random_infected(G_pg, n_inf)
+    add_random_infected(G_bc, n_inf)
+    add_random_infected(G_gr, n_inf)
 
     print_g_sis_carac(G)
     print_g_sis_carac(G_hg, name="G_HG")
     print_g_sis_carac(G_pg, name="G_PG")
+    print_g_sis_carac(G_bc, name="G_PG")
+    print_g_sis_carac(G_gr, name="G_PG")
 
     G_states = run_sis(G, beta, gamma, t_max)
     G_hg_states = run_sis(G_hg, beta, gamma, t_max)
     G_pg_states = run_sis(G_pg, beta, gamma, t_max)
+    G_bc_states = run_sis(G_bc, beta, gamma, t_max)
+    G_gr_states = run_sis(G_gr, beta, gamma, t_max)
     
 
-    plot_infected_grow([G_states, G_hg_states, G_pg_states],
-                       ["Normal", "High degree", "PageRank"],
+    plot_infected_grow([G_states, G_hg_states, G_pg_states, G_bc_states, G_gr_states],
+                       ["Normal", "High degree", "PageRank", "Betweeness Centrality", "Greedy"],
                        n,
                        title=plt_title)

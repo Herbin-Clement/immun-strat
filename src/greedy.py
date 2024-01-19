@@ -16,9 +16,15 @@ def get_not_infected_nodes(G):
     return not_infected_nodes
 
 def get_neighbourhood_subgraph(G, node, k):
+    """
+    Returns induced subgraph of neighbors centered at node within a given radius k.
+    """
     return nx.ego_graph(G, node, radius=k)
 
 def get_subgraph(G, infected_nodes, k):
+    """
+    Get a subgraph of neighbors centered at infected nodes
+    """
     subgraph = get_neighbourhood_subgraph(G, infected_nodes[0], k)
     nodes = set()
     for node in infected_nodes[1:]:
@@ -38,7 +44,7 @@ def greedy_algorithm(G, infected_nodes, n_vac, beta, gamma):
     """
     """
     W = []
-    GW, not_inf_vac_nodes = get_subgraph(G, infected_nodes, 2)
+    GW, not_inf_vac_nodes = get_subgraph(G, infected_nodes, 1)
     for _ in range(n_vac):
         delta_W_u = []
         VW = V(GW, beta, gamma, infected_nodes)
@@ -53,16 +59,3 @@ def greedy_algorithm(G, infected_nodes, n_vac, beta, gamma):
         GW.nodes[best_node]["state"] = 'V'
         G.nodes[best_node]["state"] = 'V'
     return G, W
-            
-
-# def loop(param):
-#     node, GW, beta, gamma = param
-#     node = not_inf_vac_nodes[i]
-#     VWp = V(GW, beta, gamma, node)
-#     delta_W_u.append((node, VW - VWp))
-#     GW.nodes[node]["state"] = 'S'
-
-#     args = [(G, beta, gamma) for _ in range(R)]
-#     with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
-#         results = p.map(sis.run_fast_sis_parallel, args)
-#     return np.mean(results)

@@ -4,8 +4,8 @@ import networkx as nx
 
 def get_graph(filename, sep="\t"):
     """
-    Get edges data from a file. Remove self-loop and select
-    the biggest connected component 
+    Get edges data from a file
+    Remove self-loop and select the biggest connected component 
     """
     grqc = pd.read_csv(filename, sep=sep, header=None)
 
@@ -19,8 +19,6 @@ def get_graph(filename, sep="\t"):
         G.nodes[node]["state"] = 'S'
     
     Gcc = sorted(nx.connected_components(G), key=len, reverse=True)
-    for a in nx.connected_components(G):
-        print(len(a))
     G = G.subgraph(Gcc[0])
     G = nx.convert_node_labels_to_integers(G)
 

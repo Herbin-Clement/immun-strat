@@ -33,6 +33,9 @@ def add_random_infected(G, n):
     return S
 
 def add_cluster_infected(G, n):
+    """
+    Add a cluster of n nodes infected
+    """
     i = 0
     nodes = list(G.nodes)
     S = []
@@ -132,6 +135,9 @@ def run_sis(G, beta, gamma, t_max, start_sus, start_inf):
     return infs
 
 def run_k_sis(G, beta, gamma, t_max, start_sus, start_inf, k):
+    """
+    Run k simulation of SIS model and compute the average of infected nodes over time
+    """
     infs = []
     mean = []
     for i in tqdm(range(k), ):
@@ -146,7 +152,7 @@ def run_k_sis(G, beta, gamma, t_max, start_sus, start_inf, k):
 
 def run_fast_sis(G, beta, gamma):
     """
-    Run a simulation of a SIS model
+    Run a simulation of a SIS model for the computation of V
     """
     G = nx.convert_node_labels_to_integers(G)
     S = [node[0] for node in G.nodes(data=True) if node[1]["state"] == 'I']
@@ -172,15 +178,24 @@ def run_fast_sis(G, beta, gamma):
     return inf
 
 def run_sim(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="images", k=100, cluster=False):
+    """
+    Run simulation with differents vaccinations algorithm
+    """
     n = len(list(G.nodes))
     G_pg = immun.immun_page_rank(G, n_vac)
+    G_hg = immun.immun_high_degree(G, n_vac)
+    G_bc = immun.immun_betweenness_centrality(G, n_vac)
 
     if cluster:
         S = add_cluster_infected(G, n_inf)
         add_cluster_infected(G_pg, n_inf)
+        add_cluster_infected(G_hg, n_inf)
+        add_cluster_infected(G_bc, n_inf)
     else:
         S = add_random_infected(G, n_inf)
         add_random_infected(G_pg, n_inf)
+        add_random_infected(G_hg, n_inf)
+        add_random_infected(G_bc, n_inf)
 
     G_gr, _ = gr.greedy_algorithm(G.copy(), S, n_vac, beta, gamma)
 
@@ -188,17 +203,65 @@ def run_sim(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="images
     print_g_sis_carac(G)
     print_g_sis_carac(G_gr, name="G_GR")
     print_g_sis_carac(G_pg, name="G_PG")
+    print_g_sis_carac(G_hg, name="G_PG")
+    print_g_sis_carac(G_bc, name="G_PG")
 
     G_states = run_k_sis(G, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
     G_pg_states = run_k_sis(G_pg, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
     G_gr_states = run_k_sis(G_gr, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
+    G_hg_states = run_k_sis(G_hg, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
+    G_bc_states = run_k_sis(G_bc, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
     
     print(G_states)
     print(G_pg_states)
     print(G_gr_states)
+    print(G_hg_states)
+    print(G_bc_states)
 
-    plot_infected_grow([G_states, G_pg_states, G_gr_states],
-                       ["Normal", "PageRank", "Greedy"],
+    plot_infected_grow([G_states, G_pg_states, G_gr_states, G_hg_states, G_bc_states],
+                       ["Normal", "PageRank", "Greedy", "Highest degree", "Betweenness centrality"],
+                       n,
+                       file=file,
+                       plt_title=plt_title,
+                       folder=folder)
+    
+def run_sim_without_betweenness(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="images", k=100, cluster=False):
+    """
+    Run simulation with differents vaccinations algorithm (without betweenness)
+    """
+    n = len(list(G.nodes))
+    G_pg = immun.immun_page_rank(G, n_vac)
+    G_hg = immun.immun_high_degree(G, n_vac)
+
+    if cluster:
+        S = add_cluster_infected(G, n_inf)
+        add_cluster_infected(G_pg, n_inf)
+        add_cluster_infected(G_hg, n_inf)
+    else:
+        S = add_random_infected(G, n_inf)
+        add_random_infected(G_pg, n_inf)
+        add_random_infected(G_hg, n_inf)
+
+    G_gr, _ = gr.greedy_algorithm(G.copy(), S, n_vac, beta, gamma)
+
+    utils.print_g_carac(G)
+    print_g_sis_carac(G)
+    print_g_sis_carac(G_gr, name="G_GR")
+    print_g_sis_carac(G_pg, name="G_PG")
+    print_g_sis_carac(G_hg, name="G_PG")
+
+    G_states = run_k_sis(G, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
+    G_pg_states = run_k_sis(G_pg, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
+    G_gr_states = run_k_sis(G_gr, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
+    G_hg_states = run_k_sis(G_hg, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
+    
+    print(G_states)
+    print(G_pg_states)
+    print(G_gr_states)
+    print(G_hg_states)
+
+    plot_infected_grow([G_states, G_pg_states, G_gr_states, G_hg_states],
+                       ["Normal", "PageRank", "Greedy", "Highest degree"],
                        n,
                        file=file,
                        plt_title=plt_title,

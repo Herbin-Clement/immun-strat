@@ -19,6 +19,8 @@ def get_graph(filename, sep="\t"):
         G.nodes[node]["state"] = 'S'
     
     Gcc = sorted(nx.connected_components(G), key=len, reverse=True)
+    for a in nx.connected_components(G):
+        print(len(a))
     G = G.subgraph(Gcc[0])
     G = nx.convert_node_labels_to_integers(G)
 

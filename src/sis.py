@@ -32,6 +32,28 @@ def add_random_infected(G, n):
             i += 1
     return S
 
+def add_cluster_infected(G, n):
+    i = 0
+    nodes = list(G.nodes)
+    S = []
+    found = False
+    while not found:
+        node = random.sample(nodes, 1)[0]
+        s = G.nodes[node]["state"]
+        if s != 'V' and s != 'I':
+            G.nodes[node]["state"] = 'I'
+            S.append(node)
+            found = True
+            while len(S) < n:
+                for ne in G.neighbors(S[i]):
+                    s = G.nodes[ne]["state"] 
+                    if s != 'V' and s != 'I':
+                        G.nodes[ne]["state"] = 'I'
+                        S.append(ne)
+                        if len(S) == n:
+                            return S
+                i += 1
+
 def print_g_sis_carac(G, name="G"):
     """
     Print differents caracteristic for SIS model
@@ -67,15 +89,14 @@ def plot_infected_grow(states, legends, n, file="image", plt_title="Infection gr
     """
     Plot the infected rate over time
     """
-    x = [step["t"] for step in states[0]]
-    plt.figure(facecolor="#505050")
+    x = [i for i in range(len(states[0]))]
+    # plt.figure(facecolor="#505050")
+    plt.figure()
     ax = plt.axes()
     ax.set_title(plt_title)
-    for i, state in enumerate(states):
-        y = [step["cur_inf"]/n for step in state]
-        print(y)
-        ax.plot(x, y, label=legends[i])
-    ax.set_facecolor("#505050")
+    for i, n_inf in enumerate(states):
+        ax.plot(x, [y/n for y in n_inf], label=legends[i], linestyle="--", marker="o")
+    # ax.set_facecolor("#505050")
     ax.set_xlabel("t")
     ax.set_ylim([0, 1])
     ax.set_ylabel("Infectious rate")
@@ -83,15 +104,13 @@ def plot_infected_grow(states, legends, n, file="image", plt_title="Infection gr
     print(f"filename: {folder}/{file}.png")
     if save:
         plt.savefig(f"{folder}/{file}.png")
-    plt.show()
 
 def run_sis(G, beta, gamma, t_max, start_sus, start_inf):
     """
     Run a simulation of a SIS model
     """
-    sim_states = [{"t": 0, "cur_sus": start_sus, "cur_inf": start_inf}]
+    infs = [start_inf]
     for t in range(1, t_max + 1):
-        sim_step_state = {"t": t, "cur_sus": 0, "cur_inf": 0, "infected": 0, "recover": 0}
         nodes = [G.nodes[node]["state"] for node in list(G.nodes)]
         for n in G.nodes(data=False):
             if G.nodes[n]["state"] == 'V':
@@ -105,13 +124,25 @@ def run_sis(G, beta, gamma, t_max, start_sus, start_inf):
                         if np.random.rand() < beta:     # node become infected if r > Beta
                             nodes[n] = 'I'
                             break
-
+        infs.append(0)
         for node, state in enumerate(nodes): # update graph and save state
             if G.nodes[node]["state"] == 'I':
-                sim_step_state["cur_inf"] += 1
+                infs[t] += 1
             G.nodes[node]["state"] = state
-        sim_states.append(sim_step_state)
-    return sim_states
+    return infs
+
+def run_k_sis(G, beta, gamma, t_max, start_sus, start_inf, k):
+    infs = []
+    mean = []
+    for i in tqdm(range(k), ):
+        Gc = G.copy()
+        infs.append(run_sis(Gc, beta, gamma, t_max, start_sus, start_inf))
+    for i in range(len(infs[0])):
+        n = 0
+        for j in range(len(infs)):
+            n += infs[j][i]
+        mean.append(n/len(infs))
+    return mean
 
 def run_fast_sis(G, beta, gamma):
     """
@@ -140,95 +171,31 @@ def run_fast_sis(G, beta, gamma):
             G.nodes[node[0]]["state"] = node[1]
     return inf
 
-def run_sim(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="images"):
+def run_sim(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="images", k=100, cluster=False):
     n = len(list(G.nodes))
-    utils.print_g_carac(G)
-    G_hg = immun.immun_high_degree(G, n_vac)
-    G_pg = immun.immun_page_rank(G, n_vac)
-    # G_bc = immun.immun_betweenness_centrality(G, n_vac)
-    G_gr = immun.immun_greedy(G, n_vac, beta)
-
-    add_random_infected(G, n_inf)
-    add_random_infected(G_hg, n_inf)
-    add_random_infected(G_pg, n_inf)
-    # add_random_infected(G_bc, n_inf)
-    add_random_infected(G_gr, n_inf)
-
-    print_g_sis_carac(G)
-    print_g_sis_carac(G_hg, name="G_HG")
-    print_g_sis_carac(G_pg, name="G_PG")
-    # print_g_sis_carac(G_bc, name="G_PG")
-    print_g_sis_carac(G_gr, name="G_PG")
-
-    G_states = run_sis(G, beta, gamma, t_max)
-    G_hg_states = run_sis(G_hg, beta, gamma, t_max)
-    G_pg_states = run_sis(G_pg, beta, gamma, t_max)
-    # G_bc_states = run_sis(G_bc, beta, gamma, t_max)
-    G_gr_states = run_sis(G_gr, beta, gamma, t_max)
-    
-
-    plot_infected_grow([G_states, G_hg_states, G_pg_states, G_gr_states],
-                       ["Normal", "High degree", "PageRank", "Greedy"],
-                       n,
-                       file=file,
-                       plt_title=plt_title,
-                       folder=folder)
-
-
-def run_sim2(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="images"):
-    n = len(list(G.nodes))
-    utils.print_g_carac(G)
-    G_hg = immun.immun_high_degree(G, n_vac)
-    G_pg = immun.immun_page_rank(G, n_vac)
-    # G_bc = immun.immun_betweenness_centrality(G, n_vac)
-
-    S = add_random_infected(G, n_inf)
-    add_random_infected(G_hg, n_inf)
-    add_random_infected(G_pg, n_inf)
-    # add_random_infected(G_bc, n_inf)
-    G_gr = G.copy()
-    gr.greedy_algorithm(G, S, n_vac)
-
-    print_g_sis_carac(G)
-    print_g_sis_carac(G_hg, name="G_HG")
-    print_g_sis_carac(G_pg, name="G_PG")
-    # print_g_sis_carac(G_bc, name="G_PG")
-    print_g_sis_carac(G_gr, name="G_GR")
-
-    G_states = run_sis(G, beta, gamma, t_max)
-    G_hg_states = run_sis(G_hg, beta, gamma, t_max)
-    G_pg_states = run_sis(G_pg, beta, gamma, t_max)
-    # G_bc_states = run_sis(G_bc, beta, gamma, t_max)
-    G_gr_states = run_sis(G_gr, beta, gamma, t_max)
-    
-
-    plot_infected_grow([G_states, G_hg_states, G_pg_states, G_gr_states],
-                       ["Normal", "High degree", "PageRank", "Greedy"],
-                       n,
-                       file=file,
-                       plt_title=plt_title,
-                       folder=folder)
-
-def run_sim3(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="images"):
-    n = len(list(G.nodes))
-    utils.print_g_carac(G)
     G_pg = immun.immun_page_rank(G, n_vac)
 
-    S = add_random_infected(G, n_inf)
-    add_random_infected(G_pg, n_inf)
-    G_gr, W = gr.greedy_algorithm(G.copy(), S, n_vac, beta, gamma)
+    if cluster:
+        S = add_cluster_infected(G, n_inf)
+        add_cluster_infected(G_pg, n_inf)
+    else:
+        S = add_random_infected(G, n_inf)
+        add_random_infected(G_pg, n_inf)
 
+    G_gr, _ = gr.greedy_algorithm(G.copy(), S, n_vac, beta, gamma)
+
+    utils.print_g_carac(G)
     print_g_sis_carac(G)
     print_g_sis_carac(G_gr, name="G_GR")
     print_g_sis_carac(G_pg, name="G_PG")
-    draw_g_sis(G)
-    draw_g_sis(G_gr)
-    draw_g_sis(G_pg)
 
-    G_states = run_sis(G, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf)
-    G_pg_states = run_sis(G_pg, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf)
-    G_gr_states = run_sis(G_gr, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf)
+    G_states = run_k_sis(G, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
+    G_pg_states = run_k_sis(G_pg, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
+    G_gr_states = run_k_sis(G_gr, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf, k=k)
     
+    print(G_states)
+    print(G_pg_states)
+    print(G_gr_states)
 
     plot_infected_grow([G_states, G_pg_states, G_gr_states],
                        ["Normal", "PageRank", "Greedy"],

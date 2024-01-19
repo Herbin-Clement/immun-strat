@@ -3,6 +3,7 @@ import random
 import networkx as nx
 from tqdm import tqdm
 import src.sis as sis
+import multiprocessing
 
 def get_not_infected_nodes(G):
     """
@@ -15,7 +16,7 @@ def get_not_infected_nodes(G):
     return not_infected_nodes
 
 def get_neighbourhood_subgraph(G, node, k):
-    return nx.ego_graph(G, node, radius=k)#Subgraph.nodes(data=True)
+    return nx.ego_graph(G, node, radius=k)
 
 def get_subgraph(G, infected_nodes, k):
     subgraph = get_neighbourhood_subgraph(G, infected_nodes[0], k)
@@ -46,36 +47,22 @@ def greedy_algorithm(G, infected_nodes, n_vac, beta, gamma):
             VWp = V(GW, beta, gamma, node)
             delta_W_u.append((node, VW - VWp))
             GW.nodes[node]["state"] = 'S'
-        print(delta_W_u)
         best_node = max(delta_W_u, key=lambda k: k[1])[0]
         W.append(best_node)
         not_inf_vac_nodes.remove(best_node)
         GW.nodes[best_node]["state"] = 'V'
         G.nodes[best_node]["state"] = 'V'
     return G, W
-
-# def greedy_algorithm(G, infected_nodes, n_vac, beta, gamma):
-#     """
-#     """
-#     W = []
-#     GS, _ = remove_edge_from_nodes(G, infected_nodes)
-#     GW = GS.copy()
-#     not_inf_nodes = get_not_infected_nodes(G)
-#     not_inf_vac_nodes = not_inf_nodes
-#     for _ in range(n_vac):
-#         delta_W_u = []
-#         VW = V(GW, beta, gamma, infected_nodes)
-#         for i in tqdm(range(len(not_inf_vac_nodes))):
-#             node = not_inf_nodes[i]
-#             Wp = W + [node]
-#             GWp, _ = remove_edge_from_nodes(GW, [node])
-#             VWp = V(GWp, beta, gamma, infected_nodes)
-#             print(VW, VWp)
-#             delta_W_u.append((node, VW - VWp))
-#         best_node = max(delta_W_u, key=lambda k: k[1])[0]
-#         W.append(best_node)
-#         not_inf_vac_nodes.remove(best_node)
-#         GW, _ = remove_edge_from_nodes(GW, [best_node])
-#     for node in W:
-#         G.nodes[node]['state'] = 'V'
             
+
+# def loop(param):
+#     node, GW, beta, gamma = param
+#     node = not_inf_vac_nodes[i]
+#     VWp = V(GW, beta, gamma, node)
+#     delta_W_u.append((node, VW - VWp))
+#     GW.nodes[node]["state"] = 'S'
+
+#     args = [(G, beta, gamma) for _ in range(R)]
+#     with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
+#         results = p.map(sis.run_fast_sis_parallel, args)
+#     return np.mean(results)

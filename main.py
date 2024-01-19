@@ -7,30 +7,34 @@ import src.immun as immun
 import src.data as data
 import src.greedy as gr
 
-
-n = 1000
-seed = 100
-beta = 0.4
+n = 5000
+m = 3
+beta = 0.8
 gamma = 0.4
 t_max = 12
-m = 3
-initial_infected_nodes = 5
-initial_vaccinated_nodes = 5
+n_inf = 5
+n_vac = 25
 
-print("Get graph...")
-GRQC = sis.generate_barabasi_albert_graph(n, m, 10)
-# GRQC = data.get_graph("graph/GRTQC.txt")
-# print("Add infected nodes...")
-# S = sis.add_random_infected(GRQC, initial_infected_nodes)
-# print("Greedy algorithm...")
-# GW, W = gr.greedy_algorithm(GRQC, S, initial_vaccinated_nodes)
-sis.run_sim3(
-    GRQC,
-    initial_infected_nodes,
-    initial_vaccinated_nodes,
-    beta,
-    gamma,
-    t_max,
-    "test",
-    "Infected growth (test network graph)"
-)
+print("Barabasi-Albert graph ...")
+print("Get graph ...")
+BA = sis.generate_barabasi_albert_graph(n, m, 10)
+print("Run simulation without cluster ...")
+sis.run_sim(BA, n_inf, n_vac, beta, gamma, t_max, "ba", "Infected growth (Barabasi-Albert graph)", cluster=False)
+print("Run simulation with cluster ...")
+sis.run_sim(BA, n_inf, n_vac, beta, gamma, t_max, "ba_clust", "Infected growth (Barabasi-Albert graph)", cluster=True)
+
+print("GRQC network ...")
+print("Get graph ...")
+GRQC = data.get_graph("graph/GRTQC.txt")
+print("Run simulation without cluster ...")
+sis.run_sim(GRQC, n_inf, n_vac, beta, gamma, t_max, "grqc", "Infected growth (GRQC network)", cluster=False)
+print("Run simulation with cluster ...")
+sis.run_sim(GRQC, n_inf, n_vac, beta, gamma, t_max, "grqc_clust", "Infected growth (GRQC network)", cluster=True)
+
+# print("HepTH network ...")
+# print("Get graph ...")
+# HEPTH = data.get_graph("graph/HepTh.txt")
+# print("Run simulation without cluster ...")
+# sis.run_sim(HEPTH, n_inf, n_vac, beta, gamma, t_max, "hepth", "Infected growth (HEPTH-Albert network)", cluster=False)
+# print("Run simulation with cluster ...")
+# sis.run_sim(HEPTH, n_inf, n_vac, beta, gamma, t_max, "hepth_clust", "Infected growth (HEPTH-Albert network)", cluster=True)

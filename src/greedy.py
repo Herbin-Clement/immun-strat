@@ -1,6 +1,8 @@
 import numpy as np
 import random
+import networkx as nx
 from tqdm import tqdm
+import src.sis as sis
 
 def get_not_infected_nodes(G):
     """
@@ -12,74 +14,45 @@ def get_not_infected_nodes(G):
             not_infected_nodes.append(node)
     return not_infected_nodes
 
-def remove_edge_from_nodes(G, nodes):
-    """
-    Remove every edges connected to the nodes
-    """
-    GS = G.copy()
-    E = set()
-    for u in nodes:
-        neighbors = GS.neighbors(u)
-        for v in neighbors:
-            if u > v:
-                E.add((u, v))
-            else:
-                E.add((v, u))
-    for u, v in E:
-        GS.remove_edge(u, v)
-    return GS, E
+def get_neighbourhood_subgraph(G, node, k):
+    return nx.ego_graph(G, node, radius=k)#Subgraph.nodes(data=True)
 
-def run_fast_sis(G, beta, gamma, S):
-    """
-    Run a simulation of a SIS model
-    """
-    G = G.copy()
-    inf = 0
-    S_copy = [node for node in S]
-    for _ in range(2):
-        nodes = []
-        next_S = []
-        for node in S_copy:
-            if np.random.rand() < gamma:            
-                nodes.append((node, 'S'))
-                inf -= 1
-            else:
-                next_S.append(node)
-            for ne in G.neighbors(node):               
-                if G.nodes[ne]["state"] == 'S':     
-                    if np.random.rand() < beta:     
-                        nodes.append((ne, 'I'))
-                        inf += 1
-                        next_S.append(ne)
-        for node, state in enumerate(nodes): # update graph and save state
-            G.nodes[node]["state"] = state
-    return inf
+def get_subgraph(G, infected_nodes, k):
+    subgraph = get_neighbourhood_subgraph(G, infected_nodes[0], k)
+    nodes = set()
+    for node in infected_nodes[1:]:
+        subgraph = nx.compose(subgraph, get_neighbourhood_subgraph(G, node, k))
+    for node, state in subgraph.nodes(data=True):
+        if state["state"] == 'S':
+            nodes.add(node)
+    print(subgraph.number_of_nodes(), subgraph.number_of_edges())
+    return subgraph, list(nodes)
 
-def V(G, beta, gamma, S, node=None):
+def V(G, beta, gamma, S, node=None, R=10):
     if node != None:
         G.nodes[node]["state"] = 'V'
-    return run_fast_sis(G, beta, gamma, S)
+    return np.mean([sis.run_fast_sis(G, beta, gamma) for _ in range(R)])
 
 def greedy_algorithm(G, infected_nodes, n_vac, beta, gamma):
     """
     """
     W = []
-    GW = G.copy()
-    not_inf_nodes = get_not_infected_nodes(G)
-    not_inf_vac_nodes = not_inf_nodes
+    GW, not_inf_vac_nodes = get_subgraph(G, infected_nodes, 2)
     for _ in range(n_vac):
         delta_W_u = []
         VW = V(GW, beta, gamma, infected_nodes)
         for i in tqdm(range(len(not_inf_vac_nodes))):
             node = not_inf_vac_nodes[i]
-            VWp = V(GW, beta, gamma, infected_nodes, node)
+            VWp = V(GW, beta, gamma, node)
             delta_W_u.append((node, VW - VWp))
             GW.nodes[node]["state"] = 'S'
+        print(delta_W_u)
         best_node = max(delta_W_u, key=lambda k: k[1])[0]
         W.append(best_node)
         not_inf_vac_nodes.remove(best_node)
         GW.nodes[best_node]["state"] = 'V'
-    return GW, W
+        G.nodes[best_node]["state"] = 'V'
+    return G, W
 
 # def greedy_algorithm(G, infected_nodes, n_vac, beta, gamma):
 #     """

@@ -8,7 +8,7 @@ import src.data as data
 import src.greedy as gr
 
 
-n = 10000
+n = 1000
 seed = 100
 beta = 0.4
 gamma = 0.4

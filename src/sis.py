@@ -48,7 +48,7 @@ def print_g_sis_carac(G, name="G"):
             infected += 1
     print(f"{name} has {vaccinated} vaccinated nodes, {susceptible} suceptibles nodes and {infected} infected nodes")
     
-def draw_g_sis(G, color_sus="green", color_inf="red"):
+def draw_g_sis(G, color_sus="green", color_inf="red", color_vac="blue"):
     """
     Draw the graph
     """
@@ -56,11 +56,14 @@ def draw_g_sis(G, color_sus="green", color_inf="red"):
     for _, data in G.nodes(data=True):
         if data["state"] == 'S':
             cmp.append(color_sus)
-        else:
+        elif data["state"] == 'I':
             cmp.append(color_inf)
+        else:
+            cmp.append(color_vac)
+        
     nx.draw(G, node_color=cmp, node_size=100, width=0.5, with_labels=len(G.nodes) < 100, font_size=7)
 
-def plot_infected_grow(states, legends, n, file, plt_title="Infection growth", folder="folder"):
+def plot_infected_grow(states, legends, n, file="image", plt_title="Infection growth", folder="folder", save=True):
     """
     Plot the infected rate over time
     """
@@ -78,7 +81,8 @@ def plot_infected_grow(states, legends, n, file, plt_title="Infection growth", f
     ax.set_ylabel("Infectious rate")
     ax.legend()
     print(f"filename: {folder}/{file}.png")
-    plt.savefig(f"{folder}/{file}.png")
+    if save:
+        plt.savefig(f"{folder}/{file}.png")
     plt.show()
 
 def run_sis(G, beta, gamma, t_max, start_sus, start_inf):
@@ -108,6 +112,33 @@ def run_sis(G, beta, gamma, t_max, start_sus, start_inf):
             G.nodes[node]["state"] = state
         sim_states.append(sim_step_state)
     return sim_states
+
+def run_fast_sis(G, beta, gamma):
+    """
+    Run a simulation of a SIS model
+    """
+    G = nx.convert_node_labels_to_integers(G)
+    S = [node[0] for node in G.nodes(data=True) if node[1]["state"] == 'I']
+    inf = 0
+    S_copy = [node for node in S]
+    for _ in range(2):
+        nodes = []
+        next_S = []
+        for node in S_copy:
+            if np.random.rand() < gamma:            
+                nodes.append((node, 'S'))
+                inf -= 1
+            else:
+                next_S.append(node)
+            for ne in G.neighbors(node):               
+                if G.nodes[ne]["state"] == 'S':     
+                    if np.random.rand() < beta:     
+                        nodes.append((ne, 'I'))
+                        inf += 1
+                        next_S.append(ne)
+        for node in nodes: # update graph and save state
+            G.nodes[node[0]]["state"] = node[1]
+    return inf
 
 def run_sim(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="images"):
     n = len(list(G.nodes))
@@ -185,11 +216,14 @@ def run_sim3(G, n_inf, n_vac, beta, gamma, t_max, file, plt_title, folder="image
 
     S = add_random_infected(G, n_inf)
     add_random_infected(G_pg, n_inf)
-    G_gr, W = gr.greedy_algorithm(G, S, n_vac, beta, gamma)
+    G_gr, W = gr.greedy_algorithm(G.copy(), S, n_vac, beta, gamma)
 
     print_g_sis_carac(G)
     print_g_sis_carac(G_gr, name="G_GR")
     print_g_sis_carac(G_pg, name="G_PG")
+    draw_g_sis(G)
+    draw_g_sis(G_gr)
+    draw_g_sis(G_pg)
 
     G_states = run_sis(G, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf)
     G_pg_states = run_sis(G_pg, beta, gamma, t_max, start_sus=n-n_inf-n_vac, start_inf=n_inf)
